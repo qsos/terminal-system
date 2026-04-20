@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>终端管理系统 V6.0 - 云端版</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-light: #eef2ff;
+            --success: #2ec4b6;
+            --warning: #ff9f1c;
+            --danger: #e71d36;
+            --dark: #1e293b;
+            --gray: #64748b;
+            --light-gray: #f1f5f9;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; outline: none; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--light-gray);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            color: var(--dark);
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 380px;
+            background: white;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.02);
+            z-index: 10;
+            overflow-y: auto;
+        }
+
+        .logo-area {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .logo-area h2 { margin: 0; font-size: 20px; color: var(--primary); font-weight: 800; letter-spacing: -0.5px; }
+        .logo-area span { font-size: 12px; color: var(--gray); background: var(--primary-light); padding: 2px 8px; border-radius: 4px; }
+
+        .clock-card {
+            background: var(--dark);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            color: white;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 20px rgba(30, 41, 59, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        .clock-card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+        }
+        #clockTime { font-family: 'Courier New', monospace; font-size: 36px; font-weight: bold; margin: 10px 0; letter-spacing: 2px; }
+        #clockDate { font-size: 14px; opacity: 0.8; }
+
+        .section-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--gray);
+            font-weight: 700;
+            margin: 20px 0 10px;
+            display: flex;
+            align-items: center;
+        }
+        .section-title::before {
+            content: ''; display: inline-block; width: 4px; height: 14px;
+            background: var(--primary); margin-right: 8px; border-radius: 2px;
+        }
+
+        .input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px; }
+        .input-row { display: flex; gap: 10px; }
+        
+        input[type="date"], input[type="time"], input[type="password"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: #fafafa;
+        }
+        input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px var(--primary-light); }
+
+        .btn {
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: white;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3); }
+        .btn-primary:hover { background: #3651d6; }
+        .btn-success { background: var(--success); box-shadow: 0 4px 12px rgba(46, 196, 182, 0.3); }
+        .btn-success:hover { background: #27a79b; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-danger { background: var(--danger); }
+        .btn-outline { background: white; border: 1px solid var(--border); color: var(--gray); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+        .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        .backup-time { width: 100%; padding: 8px 4px; font-size: 13px; text-align: center; }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+            overflow: hidden;
+        }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .mode-badge {
+            background: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-wrapper {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+            flex: 1;
+            overflow: auto;
+            border: 1px solid var(--border);
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 800px; }
+        thead { background: #f8fafc; position: sticky; top: 0; z-index: 5; }
+        th { padding: 16px; text-align: left; font-weight: 600; color: var(--gray); border-bottom: 2px solid var(--border); white-space: nowrap; }
+        td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--dark); }
+        tr:hover td { background: #fafafa; }
+
+        .time-input {
+            width: 90px;
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .time-input:focus { border-color: var(--primary); }
+        .time-input.pasted { animation: highlight 0.3s ease; }
+        @keyframes highlight {
+            0% { background: #fef08a; }
+            100% { background: transparent; }
+        }
+
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .status-ok { background: #dcfce7; color: #166534; }
+        .status-err { background: #fee2e2; color: #991b1b; }
+        .status-warn { background: #fef3c7; color: #92400e; }
+
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+            z-index: 100; display: none;
+        }
+        .modal {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; padding: 30px; border-radius: 16px;
+            width: 400px; z-index: 101;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            display: none;
+        }
+        .modal h3 { margin-top: 0; }
+        .modal .form-group { margin: 20px 0; }
+        .modal .form-group label { display: block; font-size: 13px; color: var(--gray); margin-bottom: 8px; }
+        .modal .form-group input { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
+        .modal .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        .modal .btn-group .btn { flex: 1; }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            z-index: 9999;
+            display: none;
+        }
+        .loading.show { display: block; }
+        .loading-spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--primary-light);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="overlay" id="overlay" onclick="closeConfig()"></div>
+<div class="modal" id="configPop">
+    <h3>⚙️ 系统设置</h3>
+    <div class="form-group">
+        <label>管理密码</label>
+        <input type="password" id="setPwd" placeholder="输入新密码（至少4位）">
+    </div>
+    <div class="btn-group">
+        <button class="btn btn-outline" onclick="closeConfig()">取消</button>
+        <button class="btn btn-primary" onclick="saveConfig()">保存设置</button>
+    </div>
+</div>
+
+<div class="loading" id="loading">
+    <span class="loading-spinner"></span>
+    <span>正在同步数据...</span>
+</div>
+
+<div class="sidebar">
+    <div class="logo-area">
+        <h2>终端管理系统</h2>
+        <span>V6.0 云端版</span>
+    </div>
+
+    <div class="clock-card">
+        <div id="clockTime">00:00:00</div>
+        <div id="clockDate">加载中...</div>
+    </div>
+
+    <div class="section-title">业务日期设置</div>
+    <div class="input-group">
+        <label style="font-size:12px; color:var(--gray);">日报查询日期</label>
+        <input type="date" id="singleDate" onchange="saveSingleDate()">
+    </div>
+
+    <div class="section-title">周报统计范围</div>
+    <div class="input-group">
+        <div class="input-row">
+            <input type="date" id="weekStart" placeholder="开始日期" onchange="saveWeekRange()">
+            <input type="date" id="weekEnd" placeholder="结束日期" onchange="saveWeekRange()">
+        </div>
+        <div class="grid-2" style="margin-top:10px;">
+            <button class="btn btn-primary" onclick="changeMode('day')" id="btnDay">📅 日报模式</button>
+            <button class="btn btn-outline" onclick="changeMode('week')" id="btnWeek">📊 周报模式</button>
+        </div>
+    </div>
+
+    <div class="section-title">自动备份时间</div>
+    <div class="grid-3">
+        <input type="time" id="t1" class="backup-time" onchange="saveBackupTimes()">
+        <input type="time" id="t2" class="backup-time" onchange="saveBackupTimes()">
+        <input type="time" id="t3" class="backup-time" onchange="saveBackupTimes()">
+    </div>
+    <button class="btn btn-sm btn-outline" style="margin-top:12px;" onclick="clearBackupTimes()">🗑️ 一键清空备份时间</button>
+
+    <div style="margin-top: auto; padding-top: 20px; display:flex; flex-direction:column; gap:10px;">
+        <button class="btn btn-warning" onclick="exportData()">💾 导出数据</button>
+        <button class="btn btn-outline" onclick="document.getElementById('fileIn').click()">📥 导入数据</button>
+        <input type="file" id="fileIn" style="display:none" accept=".json" onchange="importJSON(this)">
+        <button class="btn btn-outline" onclick="openConfig()">🔐 修改密码</button>
+        <button class="btn btn-danger" onclick="secureReset()">🗑️ 清空数据</button>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="header-bar">
+        <div class="mode-badge" id="modeTag">
+            <span>📅</span> 当前模式：日报录入
+        </div>
+        <div>
+            <button class="btn btn-success" onclick="exportCurrent()">📤 导出 Excel</button>
+        </div>
+    </div>
+
+    <div class="table-wrapper" id="tableContainer">
+    </div>
+</div>
+
+<script>
+    // ========== 配置区（只需修改这里）==========
+    const API_BASE = 'https://terminal-api.ww554849677.workers.dev'; // ⚠️ 替换为你的 Worker URL
+    const DATA_KEY = 'terminal_data_v1';
+    const CFG_KEY = 'terminal_cfg_v1';
+    
+    const names = ["马永康","董玉婷","李强","杨文旭","邱卫","富亮","张晓东","程浩","李首龙","周勇","袁斌","黄国际","李钉","刘本来","史犇","石皓宇","张宏业"];
+    
+    let lastBackupTime = "";
+    let localCache = {};
+    let cacheTime = {};
+    const CACHE_EXPIRY = 5000;
+
+    // ========== 云端同步函数 ==========
+    async function syncToCloud(operation, key, value = null) {
+        const url = operation === 'get' 
+            ? `${API_BASE}/api/get?key=${encodeURIComponent(key)}`
+            : `${API_BASE}/api/${operation}`;
+        
+        const options = {
+            method: operation === 'get' ? 'GET' : 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        };
+        
+        if (operation !== 'get' && value !== null) {
+            options.body = JSON.stringify({ key, value });
+        }
+        
+        try {
+            const response = await fetch(url, options);
+            return await response.json();
+        } catch (error) {
+            console.error('云端同步失败:', error);
+            alert('网络连接失败，请检查网络');
+            return null;
+        }
+    }
+
+    async function getFromCloud(key) {
+        const now = Date.now();
+        if (localCache[key] && (now - cacheTime[key]) < CACHE_EXPIRY) {
+            return localCache[key];
+        }
+        
+        const result = await syncToCloud('get', key);
+        if (result && result.success) {
+            localCache[key] = result.data;
+            cacheTime[key] = now;
+            return result.data;
+        }
+        return null;
+    }
+
+    async function saveToCloud(key, value) {
+        showLoading(true);
+        const result = await syncToCloud('save', key, value);
+        if (result && result.success) {
+            localCache[key] = value;
+            cacheTime[key] = Date.now();
+            showLoading(false);
+            return true;
+        }
+        showLoading(false);
+        return false;
+    }
+
+    function showLoading(show) {
+        const loading = document.getElementById('loading');
+        if (show) {
+            loading.classList.add('show');
+        } else {
+            loading.classList.remove('show');
+        }
+    }
+
+    // ========== 初始化 ==========
+    async function init() {
+        try {
+            let cfg = await getFromCloud(CFG_KEY);
+            if(!cfg) {
+                await saveToCloud(CFG_KEY, {pwd: "123456"});
+                cfg = {pwd: "123456"};
+            }
+        } catch(e) {
+            console.error('初始化配置失败:', e);
+            await saveToCloud(CFG_KEY, {pwd: "123456"});
+        }
+
+        loadUIState();
+
+        document.querySelectorAll('.time-input, .backup-time').forEach(input => {
+            input.addEventListener('paste', handleTimePaste);
+        });
+
+        document.getElementById('configPop').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+
+        setInterval(tick, 1000);
+        renderDay();
+    }
+
+    function loadUIState() {
+        const today = new Date().toISOString().split('T')[0];
+        
+        const savedSingleDate = localStorage.getItem('singleDate');
+        document.getElementById('singleDate').value = savedSingleDate || today;
+
+        const savedWeekStart = localStorage.getItem('weekStart');
+        const savedWeekEnd = localStorage.getItem('weekEnd');
+        
+        if(savedWeekStart && savedWeekEnd) {
+            document.getElementById('weekStart').value = savedWeekStart;
+            document.getElementById('weekEnd').value = savedWeekEnd;
+        } else {
+            const {monday, saturday} = getWeekRange();
+            document.getElementById('weekStart').value = monday;
+            document.getElementById('weekEnd').value = saturday;
+            localStorage.setItem('weekStart', monday);
+            localStorage.setItem('weekEnd', saturday);
+        }
+
+        const savedBackupTimes = localStorage.getItem('backupTimes');
+        if(savedBackupTimes) {
+            const times = JSON.parse(savedBackupTimes);
+            document.getElementById('t1').value = times.t1 || '';
+            document.getElementById('t2').value = times.t2 || '';
+            document.getElementById('t3').value = times.t3 || '';
+        } else {
+            document.getElementById('t1').value = '12:00';
+            document.getElementById('t2').value = '18:00';
+            document.getElementById('t3').value = '22:00';
+            localStorage.setItem('backupTimes', JSON.stringify({t1: '12:00', t2: '18:00', t3: '22:00'}));
+        }
+    }
+
+    function getWeekRange() {
+        const now = new Date();
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(now.setDate(diff));
+        const saturday = new Date(monday);
+        saturday.setDate(monday.getDate() + 5);
+        
+        return {
+            monday: monday.toISOString().split('T')[0],
+            saturday: saturday.toISOString().split('T')[0]
+        };
+    }
+
+    function saveSingleDate() {
+        const date = document.getElementById('singleDate').value;
+        localStorage.setItem('singleDate', date);
+        renderDay();
+    }
+
+    function saveWeekRange() {
+        const start = document.getElementById('weekStart').value;
+        const end = document.getElementById('weekEnd').value;
+        if(start && end) {
+            localStorage.setItem('weekStart', start);
+            localStorage.setItem('weekEnd', end);
+        }
+    }
+
+    function saveBackupTimes() {
+        const times = {
+            t1: document.getElementById('t1').value,
+            t2: document.getElementById('t2').value,
+            t3: document.getElementById('t3').value
+        };
+        localStorage.setItem('backupTimes', JSON.stringify(times));
+    }
+
+    function handleTimePaste(e) {
+        e.preventDefault();
+        const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+        const input = e.target;
+        
+        const patterns = [
+            /^(\d{1,2}):(\d{2})$/,
+            /^(\d{1,2}):(\d{2}):(\d{2})$/,
+            /^(\d{1,2})[：:](\d{2})$/,
+        ];
+        
+        let matched = null;
+        for(const pattern of patterns) {
+            const match = pasteData.trim().match(pattern);
+            if(match) {
+                matched = match;
+                break;
+            }
+        }
+        
+        if(matched) {
+            let h = matched[1].padStart(2, '0');
+            let m = matched[2].padStart(2, '0');
+            if(parseInt(h) < 24 && parseInt(m) < 60) {
+                input.value = `${h}:${m}`;
+                input.classList.add('pasted');
+                setTimeout(() => input.classList.remove('pasted'), 300);
+                
+                if(input.classList.contains('time-input')) {
+                    const row = input.closest('tr');
+                    if(row && row.dataset.name) {
+                        const date = document.getElementById('singleDate').value;
+                        const idx = input.dataset.idx || Array.from(row.querySelectorAll('.time-input')).indexOf(input) + 1;
+                        saveData(date, row.dataset.name, idx, input.value);
+                        calcRow(input);
+                    }
+                } else if(input.classList.contains('backup-time')) {
+                    saveBackupTimes();
+                }
+            } else {
+                alert('时间格式无效，请输入 00:00 - 23:59 范围内的时间');
+            }
+        } else {
+            input.value = pasteData;
+        }
+    }
+
+    function tick() {
+        const now = new Date();
+        const timeStr = now.toTimeString().split(' ')[0];
+        document.getElementById('clockTime').innerText = timeStr;
+        
+        const weekDays = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六"];
+        document.getElementById('clockDate').innerText = 
+            `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${weekDays[now.getDay()]}`;
+
+        const currentHM = timeStr.slice(0,5);
+        const t1 = document.getElementById('t1').value;
+        const t2 = document.getElementById('t2').value;
+        const t3 = document.getElementById('t3').value;
+        
+        const autoTimes = [t1, t2, t3].filter(t => t && t.trim() !== '');
+        
+        if(autoTimes.length > 0 && autoTimes.includes(currentHM) && lastBackupTime !== currentHM) {
+            lastBackupTime = currentHM;
+            exportData();
+        }
+    }
+
+    function clearBackupTimes() {
+        if(confirm('确定要清空所有自动备份时间设置吗？清空后将不会自动备份。')) {
+            document.getElementById('t1').value = '';
+            document.getElementById('t2').value = '';
+            document.getElementById('t3').value = '';
+            localStorage.setItem('backupTimes', JSON.stringify({t1: '', t2: '', t3: ''}));
+            lastBackupTime = "";
+        }
+    }
+
+    function changeMode(mode) {
+        const btnDay = document.getElementById('btnDay');
+        const btnWeek = document.getElementById('btnWeek');
+        const tag = document.getElementById('modeTag');
+        
+        if(mode === 'day') {
+            btnDay.className = 'btn btn-primary';
+            btnWeek.className = 'btn btn-outline';
+            tag.innerHTML = '<span>📅</span> 当前模式：日报录入';
+            renderDay();
+        } else {
+            btnDay.className = 'btn btn-outline';
+            btnWeek.className = 'btn btn-primary';
+            tag.innerHTML = '<span>📊</span> 当前模式：周报统计';
+            renderWeek();
+        }
+    }
+
+    async function renderDay() {
+        const date = document.getElementById('singleDate').value;
+        const data = await getFromCloud(DATA_KEY) || {};
+        const dayData = data[date] || {};
+
+        let html = `
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:120px">姓名</th>
+                        ${[1,2,3,4,5,6,7].map(i => `<th>T${i}</th>`).join('')}
+                        <th style="width:80px">数量</th>
+                        <th style="width:120px">判定</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        names.forEach(name => {
+            const userData = dayData[name] || {};
+            let inputsHtml = '';
+            for(let i=1; i<=7; i++) {
+                const val = userData['t'+i] || '';
+                inputsHtml += `<td><input type="time" class="time-input" data-idx="${i}" value="${val}" 
+                    onchange="saveData('${date}', '${name}', ${i}, this.value)" 
+                    onblur="calcRow(this)"></td>`;
+            }
+            
+            const times = [];
+            let count = 0;
+            for(let i=1; i<=7; i++) {
+                if(userData['t'+i]) {
+                    count++;
+                    times.push(userData['t'+i]);
+                }
+            }
+            const status = getStatus(times);
+
+            html += `
+                <tr data-name="${name}">
+                    <td style="font-weight:600; color:var(--primary)">${name}</td>
+                    ${inputsHtml}
+                    <td class="count-cell" style="font-weight:bold">${count}</td>
+                    <td><span class="status-badge ${status.class}">${status.text}</span></td>
+                </tr>
+            `;
+        });
+
+        html += `</tbody></table>`;
+        document.getElementById('tableContainer').innerHTML = html;
+        
+        document.querySelectorAll('.time-input').forEach(input => {
+            input.addEventListener('paste', handleTimePaste);
+        });
+    }
+
+    async function saveData(date, name, idx, value) {
+        let data = await getFromCloud(DATA_KEY) || {};
+        if(!data[date]) data[date] = {};
+        if(!data[date][name]) data[date][name] = {};
+        
+        if(value) data[date][name]['t'+idx] = value;
+        else delete data[date][name]['t'+idx];
+        
+        await saveToCloud(DATA_KEY, data);
+    }
+
+    function calcRow(input) {
+        const row = input.closest('tr');
+        if(!row) return;
+        
+        const inputs = row.querySelectorAll('.time-input');
+        const times = [];
+        let count = 0;
+        
+        inputs.forEach(inp => {
+            if(inp.value) {
+                count++;
+                times.push(inp.value);
+            }
+        });
+
+        row.querySelector('.count-cell').innerText = count;
+        const status = getStatus(times);
+        const badge = row.querySelector('.status-badge');
+        badge.className = `status-badge ${status.class}`;
+        badge.innerText = status.text;
+    }
+
+    function getStatus(times) {
+        if(times.length === 0) return {text: '-', class: ''};
+        
+        let errors = [];
+        for(let i=0; i<times.length-1; i++) {
+            const t1 = timeToMin(times[i]);
+            const t2 = timeToMin(times[i+1]);
+            if(t2 - t1 < 15) {
+                errors.push(`T${i+1}-T${i+2}`);
+            }
+        }
+
+        if(errors.length === 0) return {text: '正常', class: 'status-ok'};
+        if(errors.length >= 2) return {text: '多次异常', class: 'status-err'};
+        return {text: `${errors[0]}异常`, class: 'status-err'};
+    }
+
+    function timeToMin(t) {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+    }
+
+    async function renderWeek() {
+        const start = document.getElementById('weekStart').value;
+        const end = document.getElementById('weekEnd').value;
+        
+        if(!start || !end) {
+            alert("请选择完整的日期范围");
+            return;
+        }
+
+        const dates = [];
+        let curr = new Date(start);
+        while(curr <= new Date(end)) {
+            dates.push(curr.toISOString().split('T')[0]);
+            curr.setDate(curr.getDate() + 1);
+        }
+
+        const data = await getFromCloud(DATA_KEY) || {};
+
+        let html = `
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:100px; text-align:center">姓名</th>
+                        ${dates.map((d, i) => `<th style="text-align:center; min-width:90px;">${d.slice(5)}<br><small style="font-weight:400;color:#999">T${i+1}</small></th>`).join('')}
+                        <th style="width:80px; text-align:center">合计</th>
+                        <th style="width:120px; text-align:center">周状态</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        names.forEach(name => {
+            let totalCount = 0;
+            let badDays = 0;
+            let hasData = false;
+            
+            const cells = dates.map(date => {
+                const dayData = data[date]?.[name] || {};
+                const count = Object.keys(dayData).length;
+                if(count > 0) {
+                    hasData = true;
+                    totalCount += count;
+                    if(count < 5) badDays++;
+                }
+                return `<td style="text-align:center; color:${count>0?'var(--dark)':'#ccc'}">${count > 0 ? count : '-'}</td>`;
+            }).join('');
+
+            let statusText = "-";
+            let statusClass = "";
+            
+            if(hasData) {
+                if(badDays > 0) {
+                    statusText = `有${badDays}天未达标`;
+                    statusClass = "status-warn";
+                } else {
+                    statusText = "完美达标";
+                    statusClass = "status-ok";
+                }
+            }
+
+            html += `
+                <tr>
+                    <td style="font-weight:600; text-align:center">${name}</td>
+                    ${cells}
+                    <td style="font-weight:bold; color:var(--primary); text-align:center">${totalCount}</td>
+                    <td style="text-align:center"><span class="status-badge ${statusClass}">${statusText}</span></td>
+                </tr>
+            `;
+        });
+
+        html += `</tbody></table>`;
+        document.getElementById('tableContainer').innerHTML = html;
+    }
+
+    function exportCurrent() {
+        const modeTag = document.getElementById('modeTag').innerText;
+        if(modeTag.includes("日报")) {
+            exportDayExcel();
+        } else {
+            exportWeekExcel();
+        }
+    }
+
+    async function exportDayExcel() {
+        const date = document.getElementById('singleDate').value;
+        const data = await getFromCloud(DATA_KEY) || {};
+        const dayData = data[date] || {};
+
+        const aoa = [];
+        aoa.push([`查询日期：${date}`]);
+        aoa.push([`判定规则：15min内拜访两家以上视为异常`]);
+        
+        const headerRow = ['终端拜访数据智能管理日报'];
+        for(let i=1; i<=7; i++) headerRow.push(`T${i}`);
+        headerRow.push('数量', '判定');
+        aoa.push(headerRow);
+
+        names.forEach(name => {
+            const userData = dayData[name] || {};
+            const row = [name];
+            let count = 0;
+            const times = [];
+            
+            for(let i=1; i<=7; i++) {
+                const val = userData['t'+i] || '';
+                row.push(val);
+                if(val) {
+                    count++;
+                    times.push(val);
+                }
+            }
+            
+            const statusObj = getStatus(times);
+            row.push(count, statusObj.text);
+            aoa.push(row);
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [
+            {wch: 25}, {wch: 10}, {wch: 10}, {wch: 10}, {wch: 10}, {wch: 10}, {wch: 10}, {wch: 10},
+            {wch: 8}, {wch: 15}
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, "日报");
+        XLSX.writeFile(wb, `终端拜访日报_${date}.xlsx`);
+    }
+
+    async function exportWeekExcel() {
+        const start = document.getElementById('weekStart').value;
+        const end = document.getElementById('weekEnd').value;
+        
+        const dates = [];
+        let curr = new Date(start);
+        while(curr <= new Date(end)) {
+            dates.push(curr.toISOString().split('T')[0]);
+            curr.setDate(curr.getDate() + 1);
+        }
+
+        const data = await getFromCloud(DATA_KEY) || {};
+        const aoa = [];
+
+        const fmtStart = start.replace(/-/g, '.');
+        const fmtEnd = end.replace(/-/g, '.');
+        aoa.push([`统计周期： ${fmtStart}至 ${fmtEnd}`]);
+        aoa.push(['终端拜访数据智能管理周报汇总']);
+
+        const finalHeader = ['姓名'];
+        for(let i=1; i<=7; i++) finalHeader.push(`T${i}`);
+        finalHeader.push('数量', '判定');
+        aoa.push(finalHeader);
+
+        names.forEach(name => {
+            const row = [name];
+            let totalCount = 0;
+            let badDays = 0;
+            let hasData = false;
+
+            for(let i=0; i<7; i++) {
+                if(i < dates.length) {
+                    const d = dates[i];
+                    const dayData = data[d]?.[name] || {};
+                    const count = Object.keys(dayData).length;
+                    row.push(count);
+                    if(count > 0) {
+                        hasData = true;
+                        totalCount += count;
+                        if(count < 5) badDays++;
+                    }
+                } else {
+                    row.push('');
+                }
+            }
+
+            row.push(totalCount);
+            
+            let statusText = "-";
+            if(hasData) {
+                statusText = badDays > 0 ? `有${badDays}天少于5家` : "正常达标";
+            }
+            row.push(statusText);
+            aoa.push(row);
+        });
+
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [
+            {wch: 12}, {wch: 8}, {wch: 8}, {wch: 8}, {wch: 8}, {wch: 8}, {wch: 8}, {wch: 8},
+            {wch: 8}, {wch: 15}
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, "周报");
+        XLSX.writeFile(wb, `终端拜访周报_${start}_${end}.xlsx`);
+    }
+
+    async function exportData() {
+        const data = await getFromCloud(DATA_KEY);
+        if(!data) {
+            alert("暂无数据可导出");
+            return;
+        }
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `云端备份_${new Date().getTime()}.json`;
+        a.click();
+    }
+
+    async function importJSON(input) {
+        const file = input.files[0];
+        if(!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                await saveToCloud(DATA_KEY, data);
+                alert("✅ 数据已从文件恢复到云端！");
+                location.reload();
+            } catch(err) {
+                alert("❌ 文件格式错误，请检查备份文件");
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function openConfig() {
+        document.getElementById('overlay').style.display = 'block';
+        document.getElementById('configPop').style.display = 'block';
+        document.getElementById('setPwd').value = '';
+        setTimeout(() => document.getElementById('setPwd').focus(), 100);
+    }
+    
+    function closeConfig() {
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('configPop').style.display = 'none';
+    }
+    
+    async function saveConfig() {
+        const pwd = document.getElementById('setPwd').value;
+        if(pwd && pwd.length >= 4) {
+            await saveToCloud(CFG_KEY, {pwd: pwd});
+            alert("✅ 密码已更新");
+            closeConfig();
+        } else {
+            alert("⚠️ 密码至少需要4位字符");
+        }
+    }
+
+    async function secureReset() {
+        const cfg = await getFromCloud(CFG_KEY) || {pwd: "123456"};
+        const input = prompt("🔐 请输入管理密码确认清空业务数据：");
+        
+        if(input === cfg.pwd) {
+            const choice = confirm("选择操作：\n✅ 点击【确定】：仅清空业务数据（保留密码和设置）\n❌ 点击【取消】：清空所有数据（包括密码）");
+            
+            if(choice) {
+                await saveToCloud(DATA_KEY, {});
+                alert("✅ 云端业务数据已清空，密码和设置已保留");
+            } else {
+                await saveToCloud(DATA_KEY, {});
+                await saveToCloud(CFG_KEY, {pwd: "123456"});
+                localStorage.removeItem('singleDate');
+                localStorage.removeItem('weekStart');
+                localStorage.removeItem('weekEnd');
+                localStorage.removeItem('backupTimes');
+                alert("✅ 所有云端数据已彻底清空");
+            }
+            location.reload();
+        } else if(input !== null) {
+            alert("❌ 密码错误，操作已取消");
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>
